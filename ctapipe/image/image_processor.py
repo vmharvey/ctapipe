@@ -16,6 +16,7 @@ from ..core.traits import List, create_class_enum_trait
 from ..instrument import SubarrayDescription
 from . import (
     ImageCleaner,
+    ImageModifier,
     concentration_parameters,
     descriptive_statistics,
     hillas_parameters,
@@ -59,6 +60,9 @@ class ImageProcessor(TelescopeComponent):
     image_cleaner_type = create_class_enum_trait(
         base_class=ImageCleaner, default_value="TailcutsImageCleaner"
     )
+    image_modifier_type = create_class_enum_trait(
+        base_class=ImageModifier, default_value="NullModifier"
+    )
 
     def __init__(
         self,
@@ -91,6 +95,10 @@ class ImageProcessor(TelescopeComponent):
         self.clean = ImageCleaner.from_name(
             self.image_cleaner_type, subarray=subarray, parent=self
         )
+        self.modify = ImageModifier.from_name(
+            self.image_modifier_type, subarray=subarray, parent=self
+        )
+
         self.check_image = ImageQualityQuery(parent=self)
         self._is_simulation = is_simulation
 
@@ -188,6 +196,7 @@ class ImageProcessor(TelescopeComponent):
         for tel_id, dl1_camera in event.dl1.tel.items():
 
             # compute image parameters only if requested to write them
+            dl1_camera.image = self.modify(tel_id=tel_id, image=dl1_camera.image)
             dl1_camera.image_mask = self.clean(
                 tel_id=tel_id,
                 image=dl1_camera.image,

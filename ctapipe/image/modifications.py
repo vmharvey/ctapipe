@@ -33,10 +33,6 @@ def add_noise(image, noise_level, rng=None, correct_bias=True):
     """
     Create a new image with added poissonian noise
     """
-    # notes:
-    # mask and thresholds is probably not very useful
-    # mask is only useful if noise level is a scalar, could also provide the array directly
-    # maybe only noise level and bias, selection in tool?
     if not rng:
         rng = np.random.default_rng()
     noisy_image = image.copy()
@@ -94,90 +90,53 @@ class ImageModifier(TelescopeComponent):
         pass
 
 
-class ImageSmearer(ImageModifier):
+class NullModifier(ImageModifier):
+    def __call__(self, tel_id: int, image: np.ndarray) -> np.ndarray:
+        return image
+
+
+class LSTImageModifier(ImageModifier):
     """
-    Smear everything
+    Add in everything lstchain does.
     """
 
     smear_factor = FloatTelescopeParameter(
         default_value=0.2, help="Fraction of light to move to each neighbor"
     ).tag(config=True)
-
-    def __call__(self, tel_id, image):
-        return smear_image(self.subarray.tel[tel_id], self.smear_factor[tel_id])
-
-
-class NoiseAdder(ImageModifier):
-    # is there a way to turn this off?
-    max_threshold = FloatTelescopeParameter(
-        default_value=1e10, help="maximum charge in photoelectrons to add noise"
-    ).tag(config=True)
-    min_threshold = FloatTelescopeParameter(
-        default_value=0.0, help="minimum charge in photoelectrons to add noise"
-    ).tag(config=True)
-    # this only allows the same noise for all pixels
-    # ToDo: Think about whether we want per pixel values and if so how to configure it
-    noise_level = FloatTelescopeParameter(
-        default_value=5.0, help="minimum charge in photoelectrons to add noise"
-    ).tag(config=True)
-    correct_bias = BoolTelescopeParameter(
-        default_value=True, help="If True subtract the expected noise from the image"
-    ).tag(config=True)
-
-    def __call__(self, tel_id, image, rng=None):
-        mask = (image > self.min_threshold[tel_id]) & (
-            image < self.max_threshold[tel_id]
-        )
-        return add_noise(
-            image,
-            noise_level=self.noise_level[tel_id] * mask.astype(np.float32),
-            rng=rng,
-            correct_bias=self.correct_bias,
-        )
-
-
-class LSTNoiseAdder(NoiseAdder):
-    """
-    Add in everything lstchain does.
-    This is probably much slower because its not done in one go.
-    Need to benchmark maybe
-    """
-
     transition_charge = FloatTelescopeParameter(
-        default_value=8, help="maximum charge in photoelectrons to add noise"
+        default_value=8, help="separation between dim and bright pixels"
     ).tag(config=True)
     dim_pixel_bias = FloatTelescopeParameter(
-        default_value=0.6, help="maximum charge in photoelectrons to add noise"
+        default_value=0.6, help="extra bias to add in dim pixels"
+    ).tag(config=True)
+    dim_pixel_noise = FloatTelescopeParameter(
+        default_value=1.5, help="expected extra noise in dim pixels"
     ).tag(config=True)
     bright_pixel_noise = FloatTelescopeParameter(
-        default_value=1.44, help="maximum charge in photoelectrons to add noise"
+        default_value=1.44, help="expected extra noise in bright pixels"
+    ).tag(config=True)
+    correct_bias = BoolTelescopeParameter(
+        default_value=True,
+        help="If True subtract the expected noise from the image. possibly unclear what this does with dim_pixel_bias",
     ).tag(config=True)
 
     def __call__(self, tel_id, image, rng=None):
-        dim_pixel_mask = (image > self.min_threshold[tel_id]) & (
-            image < self.transition_threshold[tel_id]
+        smeared_image = smear_image(
+            image,
+            self.subarray.tel[tel_id].camera.geometry,
+            self.smear_factor.tel[tel_id],
         )
-        bright_pixel_mask = (image < self.max_threshold[tel_id]) & (
-            image > self.transition_threshold[tel_id]
+        noise = np.where(
+            image > self.transition_charge.tel[tel_id],
+            self.bright_pixel_noise.tel[tel_id],
+            self.dim_pixel_noise.tel[tel_id],
         )
-        increased_noise_dim = (
-            add_noise(
-                image,
-                noise_level=self.noise_level[tel_id]
-                * dim_pixel_mask.astype(np.float32),
-                rng=rng,
-                correct_bias=self.correct_bias,
-            )
-            + self.dim_pixel_bias[tel_id]
+        image_with_noise = add_noise(
+            smeared_image, noise, rng=rng, correct_bias=self.correct_bias.tel[tel_id]
         )
-        return add_noise(
-            increased_noise_dim,
-            noise_level=self.bright_pixel_noise[tel_id]
-            * bright_pixel_mask.astype(np.float32),
-            rng=rng,
-            correct_bias=self.correct_bias,
+        bias = np.where(
+            image > self.transition_charge.tel[tel_id],
+            0,
+            self.dim_pixel_noise.tel[tel_id],
         )
-
-
-class PixelValueSetter(ImageModifier):
-    pass
+        return (image_with_noise + bias).astype(np.float32)
