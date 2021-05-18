@@ -8,7 +8,7 @@ from tqdm.autonotebook import tqdm
 from ..calib.camera import CameraCalibrator, GainSelector
 from ..core import Tool
 from ..core.traits import Bool, List, classes_with_traits
-from ..image import ImageCleaner, ImageProcessor
+from ..image import ImageCleaner, ImageProcessor, ImageModifier
 from ..image.extractor import ImageExtractor
 from ..io import DataLevel, DL1Writer, EventSource, SimTelEventSource
 from ..io.dl1writer import DL1_DATA_MODEL_VERSION
@@ -41,6 +41,7 @@ class Stage1Tool(Tool):
         ("t", "allowed-tels"): "EventSource.allowed_tels",
         ("m", "max-events"): "EventSource.max_events",
         "image-cleaner-type": "ImageProcessor.image_cleaner_type",
+        "image-modifier-type": "ImageProcessor.image_modifier_type",
     }
 
     flags = {
@@ -69,6 +70,7 @@ class Stage1Tool(Tool):
     classes = (
         [CameraCalibrator, DL1Writer, ImageProcessor]
         + classes_with_traits(EventSource)
+        + classes_with_traits(ImageModifier)
         + classes_with_traits(ImageCleaner)
         + classes_with_traits(ImageExtractor)
         + classes_with_traits(GainSelector)

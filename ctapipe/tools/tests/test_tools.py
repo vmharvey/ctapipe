@@ -2,7 +2,6 @@
 Test individual tool functionality
 """
 
-import os
 import shlex
 import sys
 import subprocess
@@ -19,6 +18,7 @@ from ctapipe.core import run_tool
 from ctapipe.io import DataLevel, EventSource
 import numpy as np
 from pathlib import Path
+import json
 
 
 tmp_dir = tempfile.TemporaryDirectory()
@@ -405,3 +405,37 @@ def test_bokeh_file_viewer(tmpdir):
     assert run_tool(tool, cwd=tmpdir) == 0
     assert tool.reader.input_url == get_dataset_path("gamma_test_large.simtel.gz")
     assert run_tool(tool, ["--help-all"]) == 0
+
+
+def test_image_modifications(tmpdir, dl1_image_file):
+    from ctapipe.tools.stage1 import Stage1Tool
+    from ctapipe.io import read_table
+
+    before_images = read_table(dl1_image_file, "/dl1/event/telescope/images/tel_001")
+    config = Path(f"{tmp_dir.name}/image_modification_config.json").absolute()
+    with open("./examples/stage1_config.json") as f:
+        c = json.load(f)
+    with open(config, "w") as f:
+        # for the new file use an image modifier
+        c["ImageProcessor"]["image_modifier_type"] = "LSTImageModifier"
+        json.dump(c, f)
+
+    dl1_modified = tmp_dir.name + "/dl1_modified.dl1.h5"
+    assert (
+        run_tool(
+            Stage1Tool(),
+            argv=[
+                f"--config={config}",
+                f"--input={dl1_image_file}",
+                f"--output={dl1_modified}",
+                "--write-parameters",
+                "--overwrite",
+            ],
+            cwd=tmpdir,
+        )
+        == 0
+    )
+    modified_images = read_table(dl1_modified, "/dl1/event/telescope/images/tel_001")
+    # a better test would maybe define noise values that lead to very different masks?
+    # This only tests that the images are not the same, which they would be without modifications
+    assert not np.allclose(before_images["image"], modified_images["image"])
