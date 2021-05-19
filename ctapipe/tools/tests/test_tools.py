@@ -412,10 +412,11 @@ def test_image_modifications(tmpdir, dl1_image_file):
     from ctapipe.io import read_table
 
     before_images = read_table(dl1_image_file, "/dl1/event/telescope/images/tel_001")
-    config = Path(f"{tmp_dir.name}/image_modification_config.json").absolute()
-    with open("./examples/stage1_config.json") as f:
+    base_config = Path("./examples/stage1_config.json").absolute()
+    noise_config = Path(f"{tmp_dir.name}/image_modification_config.json").absolute()
+    with open(base_config) as f:
         c = json.load(f)
-    with open(config, "w") as f:
+    with open(noise_config, "w") as f:
         # for the new file use an image modifier
         c["ImageProcessor"]["image_modifier_type"] = "LSTImageModifier"
         json.dump(c, f)
@@ -425,7 +426,7 @@ def test_image_modifications(tmpdir, dl1_image_file):
         run_tool(
             Stage1Tool(),
             argv=[
-                f"--config={config}",
+                f"--config={noise_config}",
                 f"--input={dl1_image_file}",
                 f"--output={dl1_modified}",
                 "--write-parameters",
@@ -436,6 +437,7 @@ def test_image_modifications(tmpdir, dl1_image_file):
         == 0
     )
     modified_images = read_table(dl1_modified, "/dl1/event/telescope/images/tel_001")
-    # a better test would maybe define noise values that lead to very different masks?
-    # This only tests that the images are not the same, which they would be without modifications
-    assert not np.allclose(before_images["image"], modified_images["image"])
+    # Test, that significantly more light is recorded (bias in dim pixels)
+    assert modified_images["image"].sum() / before_images["image"].sum() > 1.5
+    # Test that light is smeared, e.g. less light in the prightest pixel
+    assert modified_images["image"].max() / before_images["image"].max() < 0.95
