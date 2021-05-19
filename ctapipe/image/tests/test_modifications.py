@@ -3,27 +3,6 @@ from numpy.testing import assert_allclose
 from ctapipe.instrument import CameraGeometry
 from ctapipe.image import modifications
 
-# perform tests with methods as well as components!
-
-
-def test_mask_broken():
-    geom = CameraGeometry.from_name("LSTCam")
-    broken_pixel_ids = [1, 5, 10]
-
-    expected = np.ones_like(geom.pix_id, dtype=bool)
-    expected[broken_pixel_ids] = 0
-    mask = modifications.mask_broken(geom, broken_pixel_ids)
-
-    assert (mask == expected).all()
-
-
-def test_mask_thresholds():
-    image = np.array([1, 2, 3, 4, 5])
-    mask = modifications.mask_thresholds(image, 4.5, 2.1)
-    expected = [False, False, True, True, False]
-
-    assert (mask == expected).all()
-
 
 def test_add_noise():
     image = np.array([0, 0, 5, 1, 0, 0])

@@ -3,31 +3,6 @@ import numpy as np
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
 
-# the most important part is the selection api!!
-
-
-def mask_broken(geom, pix_ids):
-    """
-    Create a boolean mask with deselected pixels
-    Does this really need a function?
-    """
-    mask = np.ones(shape=geom.pix_id.shape, dtype=bool)
-    mask[pix_ids] = 0
-    return mask
-
-
-def mask_thresholds(image, upper=None, lower=None):
-    """
-    Create a boolean mask with pixels selected based on thresholds.
-    Does this really need a function?
-    """
-    mask = np.ones_like(image, dtype=bool)
-    if upper:
-        mask[image > upper] = 0
-    if lower:
-        mask[image < lower] = 0
-    return mask
-
 
 def add_noise(image, noise_level, rng=None, correct_bias=True):
     """
@@ -39,11 +14,7 @@ def add_noise(image, noise_level, rng=None, correct_bias=True):
     noise = rng.poisson(noise_level)
     noisy_image += noise
     if correct_bias:
-        # which one to use?
-        # Fluctuations that have no bias per pixel
         noisy_image -= noise_level
-        # No bias over the whole image
-        # noisy_image -= np.mean(noise)
     return noisy_image
 
 
