@@ -2,6 +2,7 @@ from abc import abstractmethod
 import numpy as np
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
+from ..instrument import PixelShape
 
 
 def add_noise(image, noise_level, rng=None, correct_bias=True):
@@ -26,13 +27,13 @@ def smear_image(image, geom, smear_factor):
     # make clear what smear factor is supposed to mean and that only direct neighbors are taken into account
     # smear factor can be an array as well -> selection in tool possible!
     # a more sophisticated approach might make use of the pixel area, but thats complicated
-    if geom.pix_type.value == "hexagon":
+    if geom.pix_type is PixelShape.HEXAGON:
         max_neighbors = 6
-    elif geom.pix_type.value == "rectangular":  # thats probably labeld differently
+    elif geom.pix_type is PixelShape.SQUARE:  # thats probably labeld differently
         max_neighbors = 8  # or 4? lookup neighbor matrix for a rect cam
+        # different factors for direct and diagonal neighbors!
     else:
-        print(geom.pix_type)
-        raise Exception("Unknown pixel type")
+        raise Exception(f"Unknown pixel type {geom.pix_type}")
 
     diffused_image = (
         (image * geom.neighbor_matrix).sum(axis=1) * smear_factor / max_neighbors
