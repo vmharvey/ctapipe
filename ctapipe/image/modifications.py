@@ -73,19 +73,19 @@ class LSTImageModifier(ImageModifier):
     """
 
     smear_factor = FloatTelescopeParameter(
-        default_value=0.2, help="Fraction of light to move to each neighbor"
+        default_value=0.0, help="Fraction of light to move to each neighbor"
     ).tag(config=True)
     transition_charge = FloatTelescopeParameter(
-        default_value=8, help="separation between dim and bright pixels"
+        default_value=0.0, help="separation between dim and bright pixels"
     ).tag(config=True)
     dim_pixel_bias = FloatTelescopeParameter(
-        default_value=0.6, help="extra bias to add in dim pixels"
+        default_value=0.0, help="extra bias to add in dim pixels"
     ).tag(config=True)
     dim_pixel_noise = FloatTelescopeParameter(
-        default_value=1.5, help="expected extra noise in dim pixels"
+        default_value=0.0, help="expected extra noise in dim pixels"
     ).tag(config=True)
     bright_pixel_noise = FloatTelescopeParameter(
-        default_value=1.44, help="expected extra noise in bright pixels"
+        default_value=0.0, help="expected extra noise in bright pixels"
     ).tag(config=True)
     correct_bias = BoolTelescopeParameter(
         default_value=True,

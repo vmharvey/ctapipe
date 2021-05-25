@@ -418,6 +418,13 @@ def test_image_modifications(tmpdir, dl1_image_file):
     with open(noise_config, "w") as f:
         # for the new file use an image modifier
         c["ImageProcessor"]["image_modifier_type"] = "LSTImageModifier"
+        c["ImageProcessor"]["LSTImageModifier"] = {}
+        c["ImageProcessor"]["LSTImageModifier"]["smear_factor"] = 0.2
+        c["ImageProcessor"]["LSTImageModifier"]["transition_charge"] = 8
+        c["ImageProcessor"]["LSTImageModifier"]["dim_pixel_bias"] = 0.6
+        c["ImageProcessor"]["LSTImageModifier"]["dim_pixel_noise"] = 1.5
+        c["ImageProcessor"]["LSTImageModifier"]["bright_pixel_noise"] = 1.44
+        c["ImageProcessor"]["LSTImageModifier"]["correct_bias"] = True
         json.dump(c, f)
 
     dl1_modified = tmp_dir.name + "/dl1_modified.dl1.h5"
