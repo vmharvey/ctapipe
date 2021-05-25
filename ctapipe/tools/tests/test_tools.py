@@ -362,7 +362,6 @@ def test_dump_instrument(tmpdir):
     from ctapipe.tools.dump_instrument import DumpInstrumentTool
 
     sys.argv = ["dump_instrument"]
-    tmpdir.chdir()
 
     tool = DumpInstrumentTool()
 
