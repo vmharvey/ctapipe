@@ -3,6 +3,12 @@ import numpy as np
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
 from ..instrument import PixelShape
+from .geometry_converter import (
+    convert_rect_image_1d_to_2d,
+    convert_rect_image_back_to_1d,
+)
+from scipy.ndimage import gaussian_filter
+from scipy.signal import convolve2d
 
 
 def add_noise(image, noise_level, rng=None, correct_bias=True):
@@ -23,23 +29,42 @@ def smear_image(image, geom, smear_factor):
     """
     Create a new image with values smeared to the direct pixel neighbors
     Pixels at the camera edge lose charge this way.
+    This behaves differently for square and hexagonal pixels:
+    - For hexagonal pixels a fraction of light equal to smear_factor
+    in each pixel gets shifted to the neighboring pixels. Each pixel receives 1/6
+    of the light
+    - For square pixels, the image is converted to a 2d-arra and a 3x3 gaussian
+    kernel is applied. Less light diffuses to diagonal neighbors. Smear factor
+    is the standard deviation of the gaussian kernel in this case
+    
+    Parameters:
+    -----------
+    image: ndarray
+    geom: ctapipe.instrument.CameraGeometry
+    smear_factor: float
+    
+    Returns:
+    --------
+    smeared_image: ndarray   
     """
-    # make clear what smear factor is supposed to mean and that only direct neighbors are taken into account
-    # smear factor can be an array as well -> selection in tool possible!
-    # a more sophisticated approach might make use of the pixel area, but thats complicated
     if geom.pix_type is PixelShape.HEXAGON:
         max_neighbors = 6
-    elif geom.pix_type is PixelShape.SQUARE:  # thats probably labeld differently
-        max_neighbors = 8  # or 4? lookup neighbor matrix for a rect cam
-        # different factors for direct and diagonal neighbors!
+        diffused_image = (
+            (image * geom.neighbor_matrix).sum(axis=1) * smear_factor / max_neighbors
+        )
+        remaining_image = image * (1 - smear_factor)
+        smeared_image = remaining_image + diffused_image
+    elif geom.pix_type is PixelShape.SQUARE:
+        rows_cols, image_2d = convert_rect_image_1d_to_2d(geom, image)
+        # construct a normalized 3x3 kernel for convolution
+        kernel = np.zeros((3, 3))
+        kernel[1, 1] = 1
+        kernel = gaussian_filter(kernel, sigma=smear_factor)
+
+        smeared_2d = convolve2d(image_2d, kernel, mode="same")
+        smeared_image = convert_rect_image_back_to_1d(rows_cols, smeared_2d)
     else:
         raise Exception(f"Unknown pixel type {geom.pix_type}")
-
-    diffused_image = (
-        (image * geom.neighbor_matrix).sum(axis=1) * smear_factor / max_neighbors
-    )
-    remaining_image = image * (1 - smear_factor)
-    smeared_image = remaining_image + diffused_image
     return smeared_image
 
 
