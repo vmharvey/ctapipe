@@ -92,9 +92,19 @@ class NullModifier(ImageModifier):
         return image
 
 
-class LSTImageModifier(ImageModifier):
+class NSBNoiseAdder(ImageModifier):
     """
-    Add in everything lstchain does.
+    Component to tune simulated background to
+    overserved NSB values.
+    A differentiation between bright and dim pixels is taking place
+    because this happens at DL1a level and in general the integration window
+    would change for peak-searching extraction algorithms with different background levels
+    introducing a bias to the charge in dim pixels.
+    
+    The performed steps include:
+    - Smearing of the image (simulating a worse PSF)
+    - Adding poissonian noise (different for bright and dim pixels)
+    - Adding a bias to dim pixel charges (see above)     
     """
 
     smear_factor = FloatTelescopeParameter(
