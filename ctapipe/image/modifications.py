@@ -3,10 +3,6 @@ import numpy as np
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
 from ..instrument import PixelShape
-from .geometry_converter import (
-    convert_rect_image_1d_to_2d,
-    convert_rect_image_back_to_1d,
-)
 from scipy.ndimage import gaussian_filter
 from scipy.signal import convolve2d
 
@@ -36,16 +32,16 @@ def smear_image(image, geom, smear_factor):
     - For square pixels, the image is converted to a 2d-arra and a 3x3 gaussian
     kernel is applied. Less light diffuses to diagonal neighbors. Smear factor
     is the standard deviation of the gaussian kernel in this case
-    
+
     Parameters:
     -----------
     image: ndarray
     geom: ctapipe.instrument.CameraGeometry
     smear_factor: float
-    
+
     Returns:
     --------
-    smeared_image: ndarray   
+    smeared_image: ndarray
     """
     if geom.pix_type is PixelShape.HEXAGON:
         max_neighbors = 6
@@ -55,14 +51,14 @@ def smear_image(image, geom, smear_factor):
         remaining_image = image * (1 - smear_factor)
         smeared_image = remaining_image + diffused_image
     elif geom.pix_type is PixelShape.SQUARE:
-        rows_cols, image_2d = convert_rect_image_1d_to_2d(geom, image)
+        image_2d = geom.to_regular_image(image)
         # construct a normalized 3x3 kernel for convolution
         kernel = np.zeros((3, 3))
         kernel[1, 1] = 1
         kernel = gaussian_filter(kernel, sigma=smear_factor)
 
         smeared_2d = convolve2d(image_2d, kernel, mode="same")
-        smeared_image = convert_rect_image_back_to_1d(rows_cols, smeared_2d)
+        smeared_image = geom.regular_image_to_1d(smeared_2d)
     else:
         raise Exception(f"Unknown pixel type {geom.pix_type}")
     return smeared_image
@@ -100,11 +96,11 @@ class NSBNoiseAdder(ImageModifier):
     because this happens at DL1a level and in general the integration window
     would change for peak-searching extraction algorithms with different background levels
     introducing a bias to the charge in dim pixels.
-    
+
     The performed steps include:
     - Smearing of the image (simulating a worse PSF)
     - Adding poissonian noise (different for bright and dim pixels)
-    - Adding a bias to dim pixel charges (see above)     
+    - Adding a bias to dim pixel charges (see above)
     """
 
     smear_factor = FloatTelescopeParameter(
