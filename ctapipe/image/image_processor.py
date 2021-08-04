@@ -1,18 +1,18 @@
 """
 High level image processing  (ImageProcessor Component)
 """
+from ctapipe.coordinates import TelescopeFrame
 import numpy as np
-
 
 from ..containers import (
     ArrayEventContainer,
-    ImageParametersContainer,
     IntensityStatisticsContainer,
-    PeakTimeStatisticsContainer,
+    ImageParametersContainer,
     TimingParametersContainer,
+    PeakTimeStatisticsContainer,
 )
 from ..core import QualityQuery, TelescopeComponent
-from ..core.traits import List, create_class_enum_trait
+from ..core.traits import Bool, List, create_class_enum_trait
 from ..instrument import SubarrayDescription
 from . import (
     ImageCleaner,
@@ -26,6 +26,7 @@ from . import (
 )
 
 
+# avoid use of base containers for unparameterized images
 DEFAULT_IMAGE_PARAMETERS = ImageParametersContainer()
 DEFAULT_TRUE_IMAGE_PARAMETERS = ImageParametersContainer()
 DEFAULT_TRUE_IMAGE_PARAMETERS.intensity_statistics = IntensityStatisticsContainer(
@@ -63,14 +64,13 @@ class ImageProcessor(TelescopeComponent):
     image_modifier_type = create_class_enum_trait(
         base_class=ImageModifier, default_value="NullModifier"
     )
+    use_telescope_frame = Bool(
+        default_value=True,
+        help="Whether to calculate parameters in the telescope or camera frame",
+    ).tag(config=True)
 
     def __init__(
-        self,
-        subarray: SubarrayDescription,
-        is_simulation,
-        config=None,
-        parent=None,
-        **kwargs,
+        self, subarray: SubarrayDescription, config=None, parent=None, **kwargs
     ):
         """
         Parameters
@@ -79,8 +79,6 @@ class ImageProcessor(TelescopeComponent):
             Description of the subarray. Provides information about the
             camera which are useful in calibration. Also required for
             configuring the TelescopeParameter traitlets.
-        is_simulation: bool
-            If true, also process simulated images if they exist
         config: traitlets.loader.Config
             Configuration specified by config file or cmdline arguments.
             Used to set traitlet values.
@@ -100,7 +98,14 @@ class ImageProcessor(TelescopeComponent):
         )
 
         self.check_image = ImageQualityQuery(parent=self)
-        self._is_simulation = is_simulation
+        if self.use_telescope_frame:
+            telescope_frame = TelescopeFrame()
+            self.telescope_frame_geometries = {
+                tel_id: self.subarray.tel[tel_id].camera.geometry.transform_to(
+                    telescope_frame
+                )
+                for tel_id in self.subarray.tel
+            }
 
     def __call__(self, event: ArrayEventContainer):
         self._process_telescope_event(event)
@@ -110,11 +115,11 @@ class ImageProcessor(TelescopeComponent):
         tel_id,
         image,
         signal_pixels,
+        geometry,
         peak_time=None,
         default=DEFAULT_IMAGE_PARAMETERS,
     ) -> ImageParametersContainer:
         """Apply image cleaning and calculate image features
-
         Parameters
         ----------
         tel_id: int
@@ -125,15 +130,12 @@ class ImageProcessor(TelescopeComponent):
             image mask
         peak_time: np.ndarray
             peak time image
-
         Returns
         -------
         ImageParametersContainer:
             cleaning mask, parameters
         """
 
-        tel = self.subarray.tel[tel_id]
-        geometry = tel.camera.geometry
         image_selected = image[signal_pixels]
 
         # check if image can be parameterized:
@@ -192,9 +194,13 @@ class ImageProcessor(TelescopeComponent):
         """
         Loop over telescopes and process the calibrated images into parameters
         """
-
         for tel_id, dl1_camera in event.dl1.tel.items():
 
+            if self.use_telescope_frame:
+                # Use the transformed geometries
+                geometry = self.telescope_frame_geometries[tel_id]
+            else:
+                geometry = self.subarray.tel[tel_id].camera.geometry
             # compute image parameters only if requested to write them
             dl1_camera.image = self.modify(tel_id=tel_id, image=dl1_camera.image)
             dl1_camera.image_mask = self.clean(
@@ -208,12 +214,14 @@ class ImageProcessor(TelescopeComponent):
                 image=dl1_camera.image,
                 signal_pixels=dl1_camera.image_mask,
                 peak_time=dl1_camera.peak_time,
+                geometry=geometry,
             )
 
             self.log.debug("params: %s", dl1_camera.parameters.as_dict(recursive=True))
 
             if (
-                self._is_simulation
+                event.simulation is not None
+                and tel_id in event.simulation.tel
                 and event.simulation.tel[tel_id].true_image is not None
             ):
                 sim_camera = event.simulation.tel[tel_id]
@@ -221,6 +229,7 @@ class ImageProcessor(TelescopeComponent):
                     tel_id,
                     image=sim_camera.true_image,
                     signal_pixels=sim_camera.true_image > 0,
+                    geometry=geometry,
                     peak_time=None,  # true image from simulation has no peak time
                     default=DEFAULT_TRUE_IMAGE_PARAMETERS,
                 )

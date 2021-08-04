@@ -402,7 +402,7 @@ class CameraGeometry:
         --------
         (rows, columns) of each pixel if transformed onto an orthogonal grid
         """
-        if self.pix_type == PixelShape.HEXAGON:
+        if self.pix_type in {PixelShape.HEXAGON, PixelShape.CIRCLE}:
             # cam rotation should be 0 unless the derotation is turned off in the init
             rot_x, rot_y = unskew_hex_pixel_grid(
                 self.pix_x,
@@ -444,7 +444,7 @@ class CameraGeometry:
 
         return pixel_row, pixel_column
 
-    def to_regular_image(self, image):
+    def image_to_cartesian_representation(self, image):
         """
         Create a 2D-image from a given flat image or multiple flat images.
         In the case of hexagonal pixels, the resulting
@@ -472,14 +472,14 @@ class CameraGeometry:
             image_2d = np.flip(image_2d)
         return np.squeeze(image_2d)  # removes the extra dimension for single images
 
-    def regular_image_to_1d(self, image_2d):
+    def image_from_cartesian_representation(self, image_2d):
         """
         Create a 1D-array from a given 2D image.
 
         Parameters:
         -----------
         image_2d: np.ndarray
-            2D image created by the `to_regular_image` function
+            2D image created by the `image_to_cartesian_representation` function
             of the same geometry.
             shape is expected to be:
             (n_images, n_rows, n_cols) or (n_rows, n_cols) for a single image.
