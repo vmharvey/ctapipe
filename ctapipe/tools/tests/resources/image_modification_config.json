@@ -40,14 +40,26 @@
                 ["enough_charge", "lambda im: im.sum() > 50"]
             ]
         },
-        "NSBNoiseAdder": [
-            "smear_factor": ["type", "*", 0.2],
-            "transition_charge": ["type", "*", 0.8],
-            "dim_pixel_bias": ["type", "*", 0.6],
-            "dim_pixel_noise": ["type", "*", 1.5],
-            "bright_pixel_noise": ["type", "*", 1.44],
-            "correct_bias": ["type", "*", True],
-        ],
+        "NSBNoiseAdder": {
+            "smear_factor": [
+                ["type", "*", 0.2]
+            ],
+            "transition_charge": [
+                ["type", "*", 0.8]
+            ],
+            "dim_pixel_bias": [
+                ["type", "*", 0.6]
+            ],
+            "dim_pixel_noise": [
+                ["type", "*", 1.5]
+            ],
+            "bright_pixel_noise": [
+                ["type", "*", 1.44]
+            ],
+            "correct_bias": [
+                ["type", "*", true]
+            ]
+        }
     },
     "ShowerProcessor": {
         "ShowerQualityQuery": {
@@ -57,5 +69,5 @@
                 ["enough pixels", "lambda p: p.morphology.num_pixels > 3"]
             ]
         }
-    },
+    }
 }
