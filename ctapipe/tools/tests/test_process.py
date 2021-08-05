@@ -259,7 +259,7 @@ def test_image_modifications(tmp_path, dl1_image_file):
         "image_modification_config.json"
     )
 
-    dl1_modified = tmp_path.name + "/dl1_modified.dl1.h5"
+    dl1_modified = tmp_path / "/dl1_modified.dl1.h5"
     assert (
         run_tool(
             ProcessorTool(),
