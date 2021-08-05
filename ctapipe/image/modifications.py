@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import numpy as np
+from numba import njit
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
 from ..instrument import PixelShape
@@ -21,7 +22,74 @@ def add_noise(image, noise_level, rng=None, correct_bias=True):
     return noisy_image
 
 
-def smear_image(image, geom, smear_factor):
+@njit(cache=True)
+def smear_psf_randomly(image, fraction, indices, indptr, smear_probabilities):
+    """
+    Create a new image with values smeared across the
+    neighbor pixels specified by `indices` and `indptr`.
+    These are what defines the sparse neighbor matrix
+    and are available as attributes from the neighbor matrix.
+    The amount of charge that is distributed away from a given
+    pixel is drawn from a poissonian distribution.
+    The distribution of this charge among the neighboring
+    pixels follows a multinomial.
+    Pixels at the camera edge lose charge this way.
+    No geometry is available in this function due to the numba optimization,
+    so the indices, indptr and smear_probabilities have to match
+    to get sensible results.
+
+    Parameters:
+    -----------
+    image: ndarray
+        1d array of the pixel charge values
+    fraction: float
+        fraction of charge that will be distributed among neighbors (modulo poissonian)
+    indices: ndarray[int]
+        CSR format index array of the neighbor matrix
+    indptr: ndarray[int]
+        CSR format index pointer array of the neighbor matrix
+    smear_probabilities: ndarray[float]
+        shape: (n_neighbors, )
+        A priori distribution of the charge amongst neighbors.
+        In most cases probably of the form np.full(n_neighbors, 1/n_neighbors)
+
+    Returns:
+    --------
+    new_image: ndarray
+        1d array with smeared values
+    """
+    new_image = image.copy()
+
+    for pixel in range(len(image)):
+
+        if image[pixel] <= 0:
+            continue
+
+        to_smear = np.random.poisson(image[pixel] * fraction)
+
+        if to_smear == 0:
+            continue
+
+        # remove light from current pixel
+        new_image[pixel] -= to_smear
+
+        # add light to neighbor pixels
+        neighbors = indices[indptr[pixel] : indptr[pixel + 1]]
+        n_neighbors = len(neighbors)
+
+        # all neighbors are equally likely to receive the charge
+        # we always distribute the charge into 6 neighbors, so that charge
+        # on the edges of the camera is lost
+        neighbor_charges = np.random.multinomial(to_smear, smear_probabilities)
+
+        for n in range(n_neighbors):
+            neighbor = neighbors[n]
+            new_image[neighbor] += neighbor_charges[n]
+
+    return new_image
+
+
+def smear_psf_statically(image, geom, smear_factor):
     """
     Create a new image with values smeared to the direct pixel neighbors
     Pixels at the camera edge lose charge this way.
@@ -29,15 +97,17 @@ def smear_image(image, geom, smear_factor):
     - For hexagonal pixels a fraction of light equal to smear_factor
     in each pixel gets shifted to the neighboring pixels. Each pixel receives 1/6
     of the light
-    - For square pixels, the image is converted to a 2d-arra and a 3x3 gaussian
+    - For square pixels, the image is converted to a 2d-array and a 3x3 gaussian
     kernel is applied. Less light diffuses to diagonal neighbors. Smear factor
     is the standard deviation of the gaussian kernel in this case
 
     Parameters:
     -----------
     image: ndarray
+        1d array of the pixel charge values
     geom: ctapipe.instrument.CameraGeometry
-    smear_factor: float
+    fraction: float
+        fraction of charge that will be distributed among neighbors
 
     Returns:
     --------
@@ -124,11 +194,24 @@ class NSBNoiseAdder(ImageModifier):
     ).tag(config=True)
 
     def __call__(self, tel_id, image, rng=None):
-        smeared_image = smear_image(
+        smeared_image = smear_psf_statically(
             image,
             self.subarray.tel[tel_id].camera.geometry,
             self.smear_factor.tel[tel_id],
         )
+        # TODO: how to get max n_neighbors?
+        # geom = self.subarray.tel[tel_id].camera.geometry
+        # smeared_image = smear_psf_randomly(
+        #    image,
+        #    self.smear_factor.tel[tel_id],
+        #    geom.neighbor_matrix_sparse.indices,
+        #    geom.neighbor_matrix_sparse.indptr,
+        #    np.full(
+        #        geom.neighbor_matrix.sum(axis=1).max(),
+        #        1 / geom.neighbor_matrix.sum(axis=1).max()
+        #    )
+        # )
+
         noise = np.where(
             image > self.transition_charge.tel[tel_id],
             self.bright_pixel_noise.tel[tel_id],
