@@ -64,7 +64,8 @@ def smear_psf_randomly(
         1d array with smeared values
     """
     new_image = image.copy()
-    np.random.seed(seed)
+    if seed is not None:
+        np.random.seed(seed)
 
     for pixel in range(len(image)):
 
@@ -199,23 +200,18 @@ class NSBNoiseAdder(ImageModifier):
     ).tag(config=True)
 
     def __call__(self, tel_id, image, rng=None):
-        smeared_image = smear_psf_statically(
-            image,
-            self.subarray.tel[tel_id].camera.geometry,
-            self.smear_factor.tel[tel_id],
+        # TODO: how to get max_neighbors?
+        # This might be the safest way (including the decision if diagonal neighbors
+        # count for square pixels)
+        geom = self.subarray.tel[tel_id].camera.geometry
+        max_neighbors = geom.neighbor_matrix.sum(axis=1).max()
+        smeared_image = smear_psf_randomly(
+            image=image,
+            fraction=self.smear_factor.tel[tel_id],
+            indices=geom.neighbor_matrix_sparse.indices,
+            indptr=geom.neighbor_matrix_sparse.indptr,
+            smear_probabilities=np.full(max_neighbors, 1 / max_neighbors),
         )
-        # TODO: how to get max n_neighbors?
-        # geom = self.subarray.tel[tel_id].camera.geometry
-        # smeared_image = smear_psf_randomly(
-        #    image,
-        #    self.smear_factor.tel[tel_id],
-        #    geom.neighbor_matrix_sparse.indices,
-        #    geom.neighbor_matrix_sparse.indptr,
-        #    np.full(
-        #        geom.neighbor_matrix.sum(axis=1).max(),
-        #        1 / geom.neighbor_matrix.sum(axis=1).max()
-        #    )
-        # )
 
         noise = np.where(
             image > self.transition_charge.tel[tel_id],
