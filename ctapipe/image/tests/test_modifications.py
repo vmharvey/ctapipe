@@ -25,20 +25,56 @@ def test_add_noise():
 
 
 def test_smear_image():
+    """
+    Test that smearing the image leads to the expected results.
+    For random smearing this will not work with all seeds.
+    With the selected seed it will not lose charge
+    (No pixel outside of the camera receives light) but
+    for positive smear factors the image will be different
+    from the input
+    (At least for one pixel a positive charge is selected to
+    be distributed among neighbors).
+    """
+    seed = 20
+
+    # Hexagonal geometry -> Thats why we divide by 6 below
     geom = CameraGeometry.from_name("LSTCam")
     image = np.zeros_like(geom.pix_id, dtype=np.float64)
     # select two pixels, one at the edge with only 5 neighbors
-    # Thats why we divide by 6 below
     signal_pixels = [1, 1853]
     neighbors = geom.neighbor_matrix[signal_pixels]
+
     for signal_value in [1, 5]:
         image[signal_pixels] = signal_value
-        for s in [0, 0.2, 1]:
-            smeared_light = s * signal_value
-            smeared = modifications.smear_image(image, geom, s)
+        for fraction in [0, 0.2, 1]:
+            # static smearing
+            smeared_light = fraction * signal_value
+            smeared = modifications.smear_psf_statically(image, geom, fraction)
             assert np.isclose((image.sum() - smeared.sum() - smeared_light / 6), 0)
             neighbors_1 = smeared[neighbors[0]]
             neighbors_1853 = smeared[neighbors[1]]
             assert_allclose(neighbors_1, smeared_light / 6)
             assert_allclose(neighbors_1853, smeared_light / 6)
             assert_allclose(smeared[signal_pixels], signal_value - smeared_light)
+
+            # random smearing
+            # The seed is important here (See below)
+            smeared = modifications.smear_psf_randomly(
+                image,
+                fraction=fraction,
+                indices=geom.neighbor_matrix_sparse.indices,
+                indptr=geom.neighbor_matrix_sparse.indptr,
+                smear_probabilities=np.full(6, 1 / 6),
+                seed=seed,
+            )
+            neighbors_1 = smeared[neighbors[0]]
+            neighbors_1853 = smeared[neighbors[1]]
+
+            # this can be False if the "pseudo neighbor" of pixel
+            # 1853 is selected (outside of the camera)
+            assert np.isclose(image.sum(), smeared.sum())
+            assert np.isclose(np.sum(neighbors_1) + smeared[1], image[1])
+            # this can be False if for both pixels a 0 is
+            # drawn from the poissonian (especially with signal value 1)
+            if fraction > 0:
+                assert not ((image > 0) == (smeared > 0)).all()
