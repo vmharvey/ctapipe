@@ -23,7 +23,9 @@ def add_noise(image, noise_level, rng=None, correct_bias=True):
 
 
 @njit(cache=True)
-def smear_psf_randomly(image, fraction, indices, indptr, smear_probabilities):
+def smear_psf_randomly(
+    image, fraction, indices, indptr, smear_probabilities, seed=None
+):
     """
     Create a new image with values smeared across the
     neighbor pixels specified by `indices` and `indptr`.
@@ -52,6 +54,9 @@ def smear_psf_randomly(image, fraction, indices, indptr, smear_probabilities):
         shape: (n_neighbors, )
         A priori distribution of the charge amongst neighbors.
         In most cases probably of the form np.full(n_neighbors, 1/n_neighbors)
+    seed: int
+        Random seed for the numpy rng.
+        Because this is numba optimized, a rng instance can not be used here
 
     Returns:
     --------
@@ -59,6 +64,7 @@ def smear_psf_randomly(image, fraction, indices, indptr, smear_probabilities):
         1d array with smeared values
     """
     new_image = image.copy()
+    np.random.seed(seed)
 
     for pixel in range(len(image)):
 
@@ -66,7 +72,6 @@ def smear_psf_randomly(image, fraction, indices, indptr, smear_probabilities):
             continue
 
         to_smear = np.random.poisson(image[pixel] * fraction)
-
         if to_smear == 0:
             continue
 
