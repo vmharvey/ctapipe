@@ -9,7 +9,7 @@ import tables
 from ctapipe.core import run_tool
 from ctapipe.tools.process import ProcessorTool
 from ctapipe.utils import get_dataset_path
-from ctapipe.io import DataLevel, EventSource
+from ctapipe.io import DataLevel, EventSource, read_table
 
 try:
     from importlib.resources import files
@@ -250,7 +250,10 @@ def test_training_from_simtel(tmp_path):
 
 
 def test_image_modifications(tmp_path, dl1_image_file):
-    from ctapipe.io import read_table
+    """
+    Test that running ctapipe-process with an ImageModifier set
+    produces a file with different images.
+    """
 
     unmodified_images = read_table(
         dl1_image_file, "/dl1/event/telescope/images/tel_025"

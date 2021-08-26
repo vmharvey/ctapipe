@@ -1,11 +1,11 @@
 from abc import abstractmethod
 import numpy as np
 from numba import njit
+from scipy.ndimage import gaussian_filter
+from scipy.signal import convolve2d
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
 from ..instrument import PixelShape
-from scipy.ndimage import gaussian_filter
-from scipy.signal import convolve2d
 
 
 def add_noise(image, noise_level, rng=None, correct_bias=True):
@@ -156,10 +156,13 @@ class ImageModifier(TelescopeComponent):
         np.ndarray
             modified image
         """
-        pass
 
 
 class NullModifier(ImageModifier):
+    """
+    Returns the image without any modifications.
+    """
+
     def __call__(self, tel_id: int, image: np.ndarray) -> np.ndarray:
         return image
 
@@ -195,8 +198,7 @@ class NSBNoiseAdder(ImageModifier):
         default_value=0.0, help="expected extra noise in bright pixels"
     ).tag(config=True)
     correct_bias = BoolTelescopeParameter(
-        default_value=True,
-        help="If True subtract the expected noise from the image. possibly unclear what this does with dim_pixel_bias",
+        default_value=True, help="If True subtract the expected noise from the image."
     ).tag(config=True)
 
     def __call__(self, tel_id, image, rng=None):
@@ -224,6 +226,6 @@ class NSBNoiseAdder(ImageModifier):
         bias = np.where(
             image > self.transition_charge.tel[tel_id],
             0,
-            self.dim_pixel_noise.tel[tel_id],
+            self.dim_pixel_bias.tel[tel_id],
         )
         return (image_with_noise + bias).astype(np.float32)
