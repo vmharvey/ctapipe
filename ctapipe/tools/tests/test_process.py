@@ -277,5 +277,3 @@ def test_image_modifications(tmp_path, dl1_image_file):
     modified_images = read_table(dl1_modified, "/dl1/event/telescope/images/tel_025")
     # Test that significantly more light is recorded (bias in dim pixels)
     assert modified_images["image"].sum() / unmodified_images["image"].sum() > 1.5
-    # Test that light is smeared, e.g. less light in the brightest pixel
-    assert modified_images["image"].max() / unmodified_images["image"].max() < 0.95
