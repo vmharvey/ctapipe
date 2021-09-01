@@ -5,11 +5,13 @@ Test ctapipe-process on a few different use cases
 """
 
 import pandas as pd
+import pytest
 import tables
 from ctapipe.core import run_tool
-from ctapipe.tools.process import ProcessorTool
-from ctapipe.utils import get_dataset_path
 from ctapipe.io import DataLevel, EventSource, read_table
+from ctapipe.tools.process import ProcessorTool
+from ctapipe.tools.quickstart import CONFIGS_TO_WRITE, QuickStartTool
+from ctapipe.utils import get_dataset_path
 
 try:
     from importlib.resources import files
@@ -280,3 +282,39 @@ def test_image_modifications(tmp_path, dl1_image_file):
     modified_images = read_table(dl1_modified, "/dl1/event/telescope/images/tel_025")
     # Test that significantly more light is recorded (bias in dim pixels)
     assert modified_images["image"].sum() / unmodified_images["image"].sum() > 1.5
+
+
+@pytest.mark.parametrize("filename", CONFIGS_TO_WRITE)
+def test_quickstart_templates(filename):
+    """ ensure template configs have an appropriate placeholder for the contact info """
+    config = files("ctapipe.tools.tests.resources").joinpath(filename)
+    text = config.read_text()
+
+    assert "YOUR-NAME-HERE" in text, "Missing expected name placeholder"
+    assert "YOUREMAIL@EXAMPLE.ORG" in text, "Missing expected email placeholder"
+    assert "YOUR-ORGANIZATION" in text, "Missing expected org placeholder"
+
+
+def test_quickstart(tmp_path):
+    """ ensure quickstart tool generates expected output """
+
+    tool = QuickStartTool()
+    run_tool(
+        tool,
+        cwd=tmp_path,
+        argv=[
+            "--workdir",
+            "ProdX",
+            "--name",
+            "test",
+            "--email",
+            "a@b.com",
+            "--org",
+            "CTA",
+        ],
+    )
+
+    assert (tmp_path / "ProdX" / "README.md").exists()
+
+    for config in CONFIGS_TO_WRITE:
+        assert (tmp_path / "ProdX" / config).exists()
