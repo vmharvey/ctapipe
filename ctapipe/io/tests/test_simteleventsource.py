@@ -351,3 +351,23 @@ def test_calibscale_and_calibshift(prod5_gamma_simtel_path):
     np.testing.assert_allclose(event.r1.tel[telid].waveform[0],
                                event_shifted.r1.tel[telid].waveform[0] - calib_shift,
                                rtol=0.1)
+
+
+def test_all_showers(prod5_gamma_simtel_path):
+    '''Test that if not skipping non-triggered events, we get all simulated showers'''
+    with SimTelEventSource(
+        input_url=prod5_gamma_simtel_path,
+        skip_non_triggered=False,
+    ) as source:
+        n_events = 0
+
+        num_showers = source.simulation_config.num_showers
+        reuse = source.simulation_config.shower_reuse
+
+        for e in source:
+            shower = e.count // reuse + 1
+            event = e.count % reuse
+            assert e.index.event_id == 100 * shower + event
+            n_events += 1
+
+        assert n_events == num_showers * reuse
