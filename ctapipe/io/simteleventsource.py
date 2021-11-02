@@ -12,6 +12,7 @@ from eventio.simtel.simtelfile import SimTelFile
 
 from ..calib.camera.gainselection import GainSelector
 from ..containers import (
+    NAN_TIME,
     ArrayEventContainer,
     EventType,
     SimulatedEventContainer,
@@ -503,7 +504,10 @@ class SimTelEventSource(EventSource):
         trigger = array_event.get("trigger_information")
 
         if trigger is None:
-            data.trigger = TriggerContainer()
+            data.trigger = TriggerContainer(
+                tels_with_trigger=np.array([], dtype=np.int16),
+                time=NAN_TIME,
+            )
             return
 
         if array_event["type"] == "data":
