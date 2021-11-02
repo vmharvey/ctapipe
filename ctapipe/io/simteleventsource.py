@@ -20,6 +20,7 @@ from ..containers import (
     SimulatedShowerContainer,
     TelescopePointingContainer,
     TelescopeTriggerContainer,
+    TriggerContainer,
 )
 from ..coordinates import CameraFrame
 from ..core.traits import (
@@ -169,6 +170,11 @@ class SimTelEventSource(EventSource):
     skip_calibration_events = Bool(True, help="Skip calibration events").tag(
         config=True
     )
+
+    skip_non_triggered = Bool(True, help="Skip calibration events").tag(
+        config=True
+    )
+
     back_seekable = Bool(
         False,
         help=(
@@ -235,6 +241,7 @@ class SimTelEventSource(EventSource):
             self.input_url.expanduser(),
             allowed_telescopes=self.allowed_tels,
             skip_calibration=self.skip_calibration_events,
+            skip_non_triggered=self.skip_non_triggered,
             zcat=not self.back_seekable,
         )
         if self.back_seekable and self.is_stream:
@@ -276,7 +283,10 @@ class SimTelEventSource(EventSource):
 
     @property
     def is_stream(self):
-        return not isinstance(self.file_._filehandle, (BufferedReader, GzipFile))
+        return not isinstance(
+            self.file_._file._filehandle,
+            (BufferedReader, GzipFile)
+        )
 
     def prepare_subarray_info(self, telescope_descriptions, header):
         """
@@ -413,8 +423,8 @@ class SimTelEventSource(EventSource):
             data.pointing.tel.clear()
             data.simulation.tel.clear()
 
-            telescope_events = array_event["telescope_events"]
-            tracking_positions = array_event["tracking_positions"]
+            telescope_events = array_event.get("telescope_events", {})
+            tracking_positions = array_event.get("tracking_positions", {})
 
             for tel_id, telescope_event in telescope_events.items():
                 adc_samples = telescope_event.get("adc_samples")
@@ -490,7 +500,11 @@ class SimTelEventSource(EventSource):
         return TelescopePointingContainer(azimuth=azimuth, altitude=altitude)
 
     def _fill_trigger_info(self, data, array_event):
-        trigger = array_event["trigger_information"]
+        trigger = array_event.get("trigger_information")
+
+        if trigger is None:
+            data.trigger = TriggerContainer()
+            return
 
         if array_event["type"] == "data":
             data.trigger.event_type = EventType.SUBARRAY

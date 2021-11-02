@@ -44,7 +44,7 @@ setup(
     install_requires=[
         "astropy>=4.0.5,<5",
         "bokeh~=1.0",
-        "eventio>=1.5.0,<2.0.0a0",
+        "eventio~=2.0",
         "h5py",
         "iminuit>=2",
         "joblib",
