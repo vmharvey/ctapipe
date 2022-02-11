@@ -62,7 +62,7 @@ class ImageProcessor(TelescopeComponent):
         base_class=ImageCleaner, default_value="TailcutsImageCleaner"
     )
     image_modifier_type = create_class_enum_trait(
-        base_class=ImageModifier, default_value="NullModifier"
+        base_class=ImageModifier, default_value="NSBNoiseAdder"
     )
     use_telescope_frame = Bool(
         default_value=True,
