@@ -1,11 +1,8 @@
 from abc import abstractmethod
 import numpy as np
 from numba import njit
-from scipy.ndimage import gaussian_filter
-from scipy.signal import convolve2d
 from ..core.component import TelescopeComponent
 from ..core.traits import FloatTelescopeParameter, BoolTelescopeParameter
-from ..instrument import PixelShape
 
 
 def add_noise(image, noise_level, rng=None, correct_bias=True):

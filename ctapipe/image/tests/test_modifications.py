@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.testing import assert_allclose
 from ctapipe.instrument import CameraGeometry
 from ctapipe.image import modifications
 
@@ -62,7 +61,6 @@ def test_smear_image():
                 seed=seed,
             )
             neighbors_1 = smeared[neighbors[0]]
-            neighbors_1853 = smeared[neighbors[1]]
 
             # this can be False if the "pseudo neighbor" of pixel
             # 1853 is selected (outside of the camera)
