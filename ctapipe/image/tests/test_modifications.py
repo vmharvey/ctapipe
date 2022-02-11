@@ -51,16 +51,6 @@ def test_smear_image():
     for signal_value in [1, 5]:
         image[signal_pixels] = signal_value
         for fraction in [0, 0.2, 1]:
-            # static smearing
-            smeared_light = fraction * signal_value
-            smeared = modifications.smear_psf_statically(image, geom, fraction)
-            assert np.isclose((image.sum() - smeared.sum() - smeared_light / 6), 0)
-            neighbors_1 = smeared[neighbors[0]]
-            neighbors_1853 = smeared[neighbors[1]]
-            assert_allclose(neighbors_1, smeared_light / 6)
-            assert_allclose(neighbors_1853, smeared_light / 6)
-            assert_allclose(smeared[signal_pixels], signal_value - smeared_light)
-
             # random smearing
             # The seed is important here (See below)
             smeared = modifications.smear_psf_randomly(

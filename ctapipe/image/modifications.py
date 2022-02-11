@@ -95,51 +95,6 @@ def smear_psf_randomly(
     return new_image
 
 
-def smear_psf_statically(image, geom, smear_factor):
-    """
-    Create a new image with values smeared to the direct pixel neighbors
-    Pixels at the camera edge lose charge this way.
-    This behaves differently for square and hexagonal pixels:
-    - For hexagonal pixels a fraction of light equal to smear_factor
-    in each pixel gets shifted to the neighboring pixels. Each pixel receives 1/6
-    of the light
-    - For square pixels, the image is converted to a 2d-array and a 3x3 gaussian
-    kernel is applied. Less light diffuses to diagonal neighbors. Smear factor
-    is the standard deviation of the gaussian kernel in this case
-
-    Parameters:
-    -----------
-    image: ndarray
-        1d array of the pixel charge values
-    geom: ctapipe.instrument.CameraGeometry
-    fraction: float
-        fraction of charge that will be distributed among neighbors
-
-    Returns:
-    --------
-    smeared_image: ndarray
-    """
-    if geom.pix_type is PixelShape.HEXAGON:
-        max_neighbors = 6
-        diffused_image = (
-            (image * geom.neighbor_matrix).sum(axis=1) * smear_factor / max_neighbors
-        )
-        remaining_image = image * (1 - smear_factor)
-        smeared_image = remaining_image + diffused_image
-    elif geom.pix_type is PixelShape.SQUARE:
-        image_2d = geom.to_regular_image(image)
-        # construct a normalized 3x3 kernel for convolution
-        kernel = np.zeros((3, 3))
-        kernel[1, 1] = 1
-        kernel = gaussian_filter(kernel, sigma=smear_factor)
-
-        smeared_2d = convolve2d(image_2d, kernel, mode="same")
-        smeared_image = geom.regular_image_to_1d(smeared_2d)
-    else:
-        raise Exception(f"Unknown pixel type {geom.pix_type}")
-    return smeared_image
-
-
 class ImageModifier(TelescopeComponent):
     """
     Abstract class for configurable image modifying algorithms. Use
@@ -156,15 +111,6 @@ class ImageModifier(TelescopeComponent):
         np.ndarray
             modified image
         """
-
-
-class NullModifier(ImageModifier):
-    """
-    Returns the image without any modifications.
-    """
-
-    def __call__(self, tel_id: int, image: np.ndarray) -> np.ndarray:
-        return image
 
 
 class NSBNoiseAdder(ImageModifier):
