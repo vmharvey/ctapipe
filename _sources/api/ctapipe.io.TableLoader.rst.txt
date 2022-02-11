@@ -1,0 +1,49 @@
+TableLoader
+===========
+
+.. currentmodule:: ctapipe.io
+
+.. autoclass:: TableLoader
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~TableLoader.input_url
+      ~TableLoader.load_dl1_images
+      ~TableLoader.load_dl1_parameters
+      ~TableLoader.load_dl2_geometry
+      ~TableLoader.load_instrument
+      ~TableLoader.load_simulated
+      ~TableLoader.load_trigger
+      ~TableLoader.load_true_images
+      ~TableLoader.load_true_parameters
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~TableLoader.close
+      ~TableLoader.read_subarray_events
+      ~TableLoader.read_telescope_events
+      ~TableLoader.read_telescope_events_by_type
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: input_url
+   .. autoattribute:: load_dl1_images
+   .. autoattribute:: load_dl1_parameters
+   .. autoattribute:: load_dl2_geometry
+   .. autoattribute:: load_instrument
+   .. autoattribute:: load_simulated
+   .. autoattribute:: load_trigger
+   .. autoattribute:: load_true_images
+   .. autoattribute:: load_true_parameters
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: close
+   .. automethod:: read_subarray_events
+   .. automethod:: read_telescope_events
+   .. automethod:: read_telescope_events_by_type

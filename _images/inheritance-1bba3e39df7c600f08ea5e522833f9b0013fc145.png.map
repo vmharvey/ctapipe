@@ -1,0 +1,7 @@
+<map id="inheritance4737c869dd" name="inheritance4737c869dd">
+<area shape="rect" id="node1" href="../../api/ctapipe.core.component.Component.html#ctapipe.core.component.Component" target="_top" title="Base class of all Components." alt="" coords="363,24,441,44"/>
+<area shape="rect" id="node6" href="../../api/ctapipe.core.component.TelescopeComponent.html#ctapipe.core.component.TelescopeComponent" target="_top" title="A component that needs a `~ctapipe.instrument.SubarrayDescription` to be constructed," alt="" coords="479,4,607,24"/>
+<area shape="rect" id="node7" href="../../api/ctapipe.image.muon.ring_fitter.MuonRingFitter.html#ctapipe.image.muon.ring_fitter.MuonRingFitter" target="_top" title="Different ring fit algorithms for muon rings" alt="" coords="495,43,591,64"/>
+<area shape="rect" id="node4" title="The base class for all classes that have descriptors." alt="" coords="4,24,101,44"/>
+<area shape="rect" id="node5" href="../../api/ctapipe.image.muon.intensity_fitter.MuonIntensityFitter.html#ctapipe.image.muon.intensity_fitter.MuonIntensityFitter" target="_top" title="MuonIntensityFitter" alt="" coords="645,4,764,24"/>
+</map>
